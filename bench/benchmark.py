@@ -81,6 +81,8 @@ def main():
     results["prefill_ms_8k"] = timed_point("prefill_8k", weights)
     results["decode_ms_8k"] = timed_point("decode_8k", weights)
     results["indexer_ms_8k"] = timed_indexer_8k(weights) if results["dsa_sparse_correct"] else 0.0
+    # Intel's target configuration: 8k tokens in, 1k tokens out. Time to first token plus 1,000 decode steps.
+    results["gen_ms_8k_in_1k_out"] = results["prefill_ms_8k"] + 1000 * results["decode_ms_8k"]
     with open(ROOT / "artemis_results.json", "w") as f:
         json.dump(results, f, indent=2)
     log(json.dumps(results))

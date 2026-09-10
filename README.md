@@ -7,10 +7,10 @@ attention shape (`index_topk` 2048, 64 attention heads, 32 indexer heads, real M
 implemented and made fast with a benchmark and a correctness gate in the loop. Target
 hardware is Xeon with AMX (bf16 matmuls dispatch to oneDNN AMX).
 
-What exists: dense MLA attention (`dsa_cpu/mla.py`), the indexer projections, seeded synthetic
-data, goldens, tests, benchmark. What is missing, exactly as upstream: `Indexer.forward`
-(scoring and top-k) and `sparse_mla_attention`. Both raise `NotImplementedError`, and
-`dsa_attention` falls back to dense. The full definition is in [docs/DSA_SPEC.md](docs/DSA_SPEC.md).
+State of the tree: `main` carries a correct CPU sparse path produced by an Artemis Discovery run
+(3.2x faster than dense at 8k prefill). The pre-implementation state, with `Indexer.forward` and
+`sparse_mla_attention` raising `NotImplementedError` exactly as upstream, is tagged `v0-gap`; check
+it out to reproduce the enablement run. The full definition is in [docs/DSA_SPEC.md](docs/DSA_SPEC.md).
 
 ## Run
 
@@ -29,6 +29,7 @@ uv run python bench/benchmark.py  # writes artemis_results.json
 | `prefill_ms_8k` | lower | same at 8192 tokens |
 | `decode_ms_8k` | lower | one decode step for 4 sequences with an 8k KV cache |
 | `indexer_ms_8k` | lower | indexer alone at 8k; 0 until the sparse path is correct |
+| `gen_ms_8k_in_1k_out` | lower | Intel's target configuration: prefill at 8k plus 1,000 decode steps, derived from the two above |
 
 Baseline (Xeon Platinum 8581C, 16 cores, torch 2.14 CPU): dense 4k about 1.08 s, 8k about
 4.3 s, decode about 12 ms. Sparse attention at 8k does a quarter of the dense arithmetic, but a

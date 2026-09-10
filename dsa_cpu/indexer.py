@@ -38,4 +38,43 @@ class Indexer:
         position s <= positions[t]: I[t, s] = sum_h head_gates(x)[t, h] * relu(q[t, h] . k[s]).
         Select the index_topk largest I[t, :]; when fewer positions are valid, select them all.
         """
-        raise NotImplementedError("Indexer has no native (pure-torch) path")
+        T = x.shape[0]
+        topk = self.index_topk
+        out = torch.full((T, topk), -1, dtype=torch.int32, device=x.device)
+
+        # A causal row with at most topk valid positions has a predetermined
+        # answer. Besides being exact, handling these rows here avoids both the
+        # indexer GEMMs and topk for short prompts and the early prefill prefix.
+        valid_counts = (positions + 1).clamp(min=0)
+        deterministic = valid_counts <= topk
+        for t in deterministic.nonzero(as_tuple=False).flatten().tolist():
+            n = min(int(valid_counts[t]), topk)
+            if n:
+                out[t, :n] = torch.arange(n, dtype=torch.int32, device=x.device)
+
+        work = (~deterministic).nonzero(as_tuple=False).flatten()
+        if work.numel() == 0:
+            return out
+
+        q = self.project_queries(q_lora, positions)
+        new_k = self.project_keys(x, positions)
+        keys = torch.cat((index_k_cache, new_k), dim=0)
+        gates = self.head_gates(x)
+
+        # One fp32 [query chunk, KV] accumulator avoids materialising the much
+        # larger [query, index head, KV] logits tensor.
+        chunk = 256
+        for i0 in range(0, work.numel(), chunk):
+            rows = work[i0 : i0 + chunk]
+            max_valid = min(int(valid_counts[rows].max()), keys.shape[0])
+            logits = torch.zeros((rows.numel(), max_valid), dtype=torch.float32, device=x.device)
+            qr = q[rows]
+            for h in range(self.n_heads):
+                dots = qr[:, h] @ keys[:max_valid].T
+                logits.add_(torch.relu(dots).float() * gates[rows, h, None])
+            cols = torch.arange(max_valid, device=x.device)
+            logits.masked_fill_(cols[None, :] >= valid_counts[rows, None], float("-inf"))
+            selected = torch.topk(logits, topk, dim=-1, sorted=False).indices
+            selected = selected.sort(dim=-1).values.to(torch.int32)
+            out[rows] = selected
+        return out
