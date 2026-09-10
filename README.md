@@ -60,4 +60,5 @@ dsa_cpu/attention.py    dsa_attention entry point and the sparse_available probe
 bench/benchmark.py      artemis_results.json
 tests/                  goldens and gate
 docs/DSA_SPEC.md        the maths, the contract, the SGLang file mapping
+docs/ACCURACY.md        exhaustive fidelity vs the fp32 reference, and the GSM8K recipe for the real model
 ```
