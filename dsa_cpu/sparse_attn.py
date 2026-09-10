@@ -13,6 +13,22 @@ def sparse_mla_attention(q_nope, q_pe, c_kv, k_pe, topk_indices, W_UK, W_UV, sca
     T = q_nope.shape[0]
     H = W_UV.shape[0]
     out = torch.empty((T, H, W_UV.shape[-1]), dtype=q_nope.dtype, device=q_nope.device)
+
+    # Decode uses one fully-populated selection row.  Keep heads as matrix rows
+    # and issue direct matrix products rather than entering the general gather
+    # chunk and dispatching four einsums.
+    if T == 1 and bool((topk_indices[0] >= 0).all()):
+        idx = topk_indices[0].long()
+        c_sel = c_kv.index_select(0, idx)
+        pe_sel = k_pe.index_select(0, idx)
+        q_abs = torch.bmm(q_nope[0].unsqueeze(1), W_UK).squeeze(1)
+        scores = torch.mm(q_abs, c_sel.T)
+        scores.add_(torch.mm(q_pe[0], pe_sel.T))
+        p = torch.softmax(scores.float().mul_(scale), dim=-1).to(c_kv.dtype)
+        o_lat = torch.mm(p, c_sel)
+        out[0] = torch.bmm(o_lat.unsqueeze(1), W_UV).squeeze(1)
+        return out
+
     q_abs = torch.einsum("thd,hdr->thr", q_nope, W_UK)
 
     # Leading causal rows select their complete prefix. Compute these in large

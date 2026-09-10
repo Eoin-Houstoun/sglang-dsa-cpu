@@ -61,6 +61,17 @@ class Indexer:
         keys = torch.cat((index_k_cache, new_k), dim=0)
         gates = self.head_gates(x)
 
+        # With one decode query, materialising all bf16 head logits is small and
+        # one einsum is substantially cheaper than 32 tiny GEMM dispatches.
+        # Prefill retains serial accumulation to avoid its large head temporary.
+        if T == 1:
+            dots = torch.mm(q[0], keys.T)
+            dots.relu_()
+            logits = (dots.float() * gates[0, :, None]).sum(dim=0)
+            selected = torch.topk(logits[: int(valid_counts[0])], topk, sorted=False).indices
+            out[0] = selected.sort().values.to(torch.int32)
+            return out
+
         # One fp32 [query chunk, KV] accumulator avoids materialising the much
         # larger [query, index head, KV] logits tensor.
         chunk = 256
