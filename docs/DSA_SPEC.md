@@ -14,10 +14,10 @@ gap at GLM-5.2's algorithmic shape, small enough to iterate on in seconds.
 | `index_topk` | 2048 | 2048 |
 | `index_head_dim` | 128 | 128 |
 | `qk_rope_head_dim` | 64 | 64 |
-| `index_n_heads` | 32 | 4 |
+| `index_n_heads` | 32 | 32 |
 | `kv_lora_rank` | 512 | 512 |
 | `qk_nope_head_dim` / `v_head_dim` | 192 / 256 | same |
-| `num_attention_heads` | 64 | 8 |
+| `num_attention_heads` | 64 | 64 |
 | `hidden_size` / `q_lora_rank` | 6144 / 2048 | 1024 / 512 |
 | dtype | fp8 weights, bf16 activations | bf16 |
 
@@ -28,7 +28,7 @@ selected; at 4k sparse attention does half the dense work, at 8k a quarter.
 ## 1. Lightning indexer (`dsa_cpu/indexer.py`, `Indexer.forward`)
 
 Notation: T query tokens at `positions`, S KV positions (the `index_k_cache` rows followed by
-the keys of the T new tokens), Hi = 4 indexer heads, Di = 128, rope dim R = 64.
+the keys of the T new tokens), Hi = 32 indexer heads, Di = 128, rope dim R = 64.
 
 - `q = project_queries(q_lora, positions)` -> [T, Hi, Di] (wq_b, then interleaved rotary on the first R dims).
 - `k = cat(index_k_cache, project_keys(x, positions))` -> [S, Di] (wk, LayerNorm over Di, rotary on the first R dims).

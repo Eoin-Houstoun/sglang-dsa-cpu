@@ -9,12 +9,12 @@ class DSAConfig:
 
     hidden_size: int = 1024
     q_lora_rank: int = 512
-    num_attention_heads: int = 8
+    num_attention_heads: int = 64
     kv_lora_rank: int = 512
     qk_nope_head_dim: int = 192
     qk_rope_head_dim: int = 64
     v_head_dim: int = 256
-    index_n_heads: int = 4
+    index_n_heads: int = 32
     index_head_dim: int = 128
     index_topk: int = 2048
     rope_theta: float = 8_000_000.0

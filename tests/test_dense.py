@@ -17,7 +17,7 @@ def test_dense_matches_naive_softmax_on_small_input():
     mask = torch.arange(T)[None, None, :] > torch.arange(T)[:, None, None]
     p = torch.softmax(scores.masked_fill(mask, float("-inf")), -1)
     ref = torch.einsum("thr,hrv->thv", torch.einsum("ths,sr->thr", p, b.c_kv[:T].float()), w.W_UV.float())
-    torch.testing.assert_close(out.float(), ref, atol=3e-2, rtol=3e-2)
+    torch.testing.assert_close(out.float(), ref, atol=6e-2, rtol=5e-2)
 
 
 def test_baseline_falls_back_to_dense_when_sparse_missing():

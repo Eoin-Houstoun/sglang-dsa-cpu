@@ -8,9 +8,9 @@ POINTS = ["prefill_1k", "prefill_2k", "prefill_4k", "prefill_8k", "decode_8k"]
 # A row is "determined" when the golden selects every valid position (padding present):
 # its output is then pinned exactly, so it gets the tight class. Rows whose set is a real
 # top-2048 selection get the loose class, because a few bf16 boundary flips move the output.
-OVERLAP_MIN = 0.90
-TIGHT = dict(max_abs=0.05, row_rel_l2=0.04)
-LOOSE = dict(max_abs=0.45, row_rel_l2=0.66)
+OVERLAP_MIN = 0.97
+TIGHT = dict(max_abs=0.05, row_rel_l2=0.03)
+LOOSE = dict(max_abs=0.70, row_rel_l2=0.35)
 
 
 def load(name):

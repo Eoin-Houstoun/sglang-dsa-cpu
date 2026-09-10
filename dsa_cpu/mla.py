@@ -1,7 +1,7 @@
 import torch
 
 
-def dense_mla_attention(q_nope, q_pe, c_kv, k_pe, W_UK, W_UV, scale, causal_offset=0, chunk=1024):
+def dense_mla_attention(q_nope, q_pe, c_kv, k_pe, W_UK, W_UV, scale, causal_offset=0, chunk=256):
     """Absorbed MLA attention over every valid KV position: the CPU path that exists today."""
     T = q_nope.shape[0]
     S = c_kv.shape[0]

@@ -3,7 +3,7 @@
 DeepSeek Sparse Attention (DSA), as used by GLM-5.2, has no CPU implementation in SGLang:
 `Indexer.forward_native` raises `NotImplementedError`, and the sparse kernels are CUDA, HIP,
 XPU or NPU only. This repo reproduces that gap as a small pure-PyTorch harness at GLM-5.2's
-algorithmic shape (`index_topk` 2048, real MLA dims, heads shrunk) so the CPU path can be
+attention shape (`index_topk` 2048, 64 attention heads, 32 indexer heads, real MLA dims; only the hidden width is shrunk) so the CPU path can be
 implemented and made fast with a benchmark and a correctness gate in the loop. Target
 hardware is Xeon with AMX (bf16 matmuls dispatch to oneDNN AMX).
 
@@ -30,14 +30,16 @@ uv run python bench/benchmark.py  # writes artemis_results.json
 | `decode_ms_8k` | lower | one decode step for 4 sequences with an 8k KV cache |
 | `indexer_ms_8k` | lower | indexer alone at 8k; 0 until the sparse path is correct |
 
-Baseline (Xeon Platinum 8581C, 16 cores, torch 2.14 CPU): dense 4k about 133 ms, 8k about
-555 ms, decode about 9 ms. Sparse attention at 8k has a quarter of the dense work.
+Baseline (Xeon Platinum 8581C, 16 cores, torch 2.14 CPU): dense 4k about 1.08 s, 8k about
+4.3 s, decode about 12 ms. Sparse attention at 8k does a quarter of the dense arithmetic, but a
+per-row gather of 2,048 KV rows moves about 19 GB at 8k, so beating dense needs tiled or
+page-level gathers shared across query rows, not a naive select.
 
 ## Correctness gate
 
-`tests/fixtures/*.pt` hold, for 64 sampled query rows per operating point, the reference top-k
+`tests/fixtures/*.pt` hold, for 48 sampled query rows per operating point, the reference top-k
 sets and the sparse and dense outputs computed by an fp32 reference. `tests/goldens.py` checks
-index-set overlap (at least 0.90 per row; rows with fewer than 2048 valid positions must select
+index-set overlap (at least 0.97 per row; rows with fewer than 2048 valid positions must select
 all of them) and output error. Rows whose selected set is fully determined use a tight output
 tolerance; rows with a genuine top-2048 selection use a loose one, because a few bf16 boundary
 flips legitimately move those outputs. Tolerances were set from a bf16 run of the reference with
